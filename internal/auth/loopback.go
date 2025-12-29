@@ -16,6 +16,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// openBrowser opens the specified URL in the user's default web browser.
+// Uses platform-specific commands: 'open' on macOS, 'rundll32' on Windows,
+// and 'xdg-open' on Linux/Unix systems.
 func openBrowser(u string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
@@ -29,6 +32,9 @@ func openBrowser(u string) error {
 	return cmd.Start()
 }
 
+// randState generates a cryptographically secure random state parameter
+// for OAuth2 authentication. This prevents CSRF attacks by ensuring the
+// authorization response matches the original request. Returns a base64-encoded string.
 func randState() (string, error) {
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
@@ -37,8 +43,11 @@ func randState() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// LoopbackLogin starts a local server on 127.0.0.1:<free port>/callback,
-// opens the browser to Google auth, then exchanges the returned code for tokens.
+// LoopbackLogin implements the OAuth2 authorization code flow using a local loopback server.
+// It starts a temporary HTTP server on 127.0.0.1 with a random available port,
+// opens the user's browser to Google's authorization page, waits for the callback
+// with the authorization code, then exchanges the code for access and refresh tokens.
+// Times out after 2 minutes if the user doesn't complete authorization.
 func LoopbackLogin(cfg *oauth2.Config) (*oauth2.Token, error) {
 	state, err := randState()
 	if err != nil {

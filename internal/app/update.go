@@ -48,10 +48,15 @@ type loginDoneMsg struct {
 	err error
 }
 
+// Init initializes the application by loading OAuth configuration and saved tokens.
+// This is called once when the Bubble Tea program starts. Returns a batch command
+// that executes both loading operations in parallel.
 func (m model) Init() tea.Cmd {
 	return tea.Batch(m.loadCfgCmd(), m.loadTokenCmd())
 }
 
+// loadCfgCmd creates a command that loads the OAuth configuration from credentials.json.
+// Returns a cfgMsg with the configuration on success, or an errMsg on failure.
 func (m model) loadCfgCmd() tea.Cmd {
 	return func() tea.Msg {
 		cfg, err := loadOAuthConfig()
@@ -70,6 +75,9 @@ type errMsg struct {
 	err error
 }
 
+// loadTokenCmd creates a command that loads a previously saved OAuth token from disk.
+// Returns a tokenLoadedMsg with the token if found, or nil if no token exists.
+// This allows automatic login without requiring user authentication each time.
 func (m model) loadTokenCmd() tea.Cmd {
 	return func() tea.Msg {
 		if m.store == nil {
@@ -88,6 +96,9 @@ type tokenLoadedMsg struct {
 	err error
 }
 
+// loginCmd initiates the OAuth2 login flow using a local loopback server.
+// Opens the user's browser to Google's authentication page, waits for authorization,
+// and saves the resulting token to disk for future use.
 func (m model) loginCmd() tea.Cmd {
 	return func() tea.Msg {
 		if m.cfg == nil {
@@ -106,8 +117,12 @@ func (m model) loginCmd() tea.Cmd {
 
 type errMissingCfg struct{}
 
+// Error returns the error message for missing OAuth configuration.
 func (e errMissingCfg) Error() string { return "missing oauth config" }
 
+// fetchInboxCmd creates a command that fetches up to 25 emails from the Gmail inbox.
+// Uses the current search query if one is set. Converts Gmail API responses into
+// list items for display in the TUI. Has a 20-second timeout for the API call.
 func (m model) fetchInboxCmd() tea.Cmd {
 	cfg := m.cfg
 	tok := m.token
@@ -142,6 +157,9 @@ func (m model) fetchInboxCmd() tea.Cmd {
 	}
 }
 
+// fetchDetailCmd creates a command that fetches the full details of a specific email by ID.
+// Formats the email headers and body into a readable string for display in the detail view.
+// Has a 20-second timeout for the API call.
 func (m model) fetchDetailCmd(id string) tea.Cmd {
 	cfg := m.cfg
 	tok := m.token
@@ -173,6 +191,9 @@ func (m model) fetchDetailCmd(id string) tea.Cmd {
 	}
 }
 
+// Update handles all incoming messages and updates the application state accordingly.
+// This is the main event handler that processes window resizes, keyboard input,
+// and async command results. Returns the updated model and any new commands to execute.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:

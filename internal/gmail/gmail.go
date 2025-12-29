@@ -16,6 +16,9 @@ type Client struct {
 	svc *gmail.Service
 }
 
+// New creates a new Gmail API client using the provided OAuth2 configuration and token.
+// The client is configured with automatic token refresh and ready to make Gmail API calls.
+// Returns an error if the Gmail service cannot be initialized.
 func New(ctx context.Context, cfg *oauth2.Config, tok *oauth2.Token) (*Client, error) {
 	httpClient := oauth2.NewClient(ctx, cfg.TokenSource(ctx, tok))
 	svc, err := gmail.NewService(ctx, option.WithHTTPClient(httpClient))
@@ -43,6 +46,9 @@ type EmailDetail struct {
 	Body    string
 }
 
+// headerVal extracts the value of a specific email header by name (case-insensitive).
+// Searches through the Gmail message headers and returns the first matching value,
+// or an empty string if the header is not found.
 func headerVal(headers []*gmail.MessagePartHeader, name string) string {
 	ln := strings.ToLower(name)
 	for _, h := range headers {
@@ -53,6 +59,10 @@ func headerVal(headers []*gmail.MessagePartHeader, name string) string {
 	return ""
 }
 
+// ListInbox fetches up to 'max' email messages from the user's Gmail inbox.
+// If a query string is provided, it applies Gmail search syntax filtering
+// (e.g., "from:someone newer_than:7d"). Returns basic metadata including
+// subject, sender, date, and snippet. Silently skips emails that fail to fetch.
 func (c *Client) ListInbox(ctx context.Context, max int64, query string) ([]EmailRow, error) {
 	call := c.svc.Users.Messages.List("me").MaxResults(max)
 	call = call.LabelIds("INBOX")
@@ -93,6 +103,10 @@ func (c *Client) ListInbox(ctx context.Context, max int64, query string) ([]Emai
 	return out, nil
 }
 
+// decodeB64URL decodes a URL-safe base64 encoded string to plain text.
+// Gmail API uses base64url encoding for message bodies, which replaces
+// '+' with '-' and '/' with '_', and omits padding. This function reverses
+// those changes and properly decodes the content.
 func decodeB64URL(s string) (string, error) {
 	s = strings.ReplaceAll(s, "-", "+")
 	s = strings.ReplaceAll(s, "_", "/")
@@ -109,6 +123,10 @@ func decodeB64URL(s string) (string, error) {
 	return string(b), nil
 }
 
+// extractBody recursively searches through email message parts to find and extract
+// the plain text body. Gmail messages have a complex MIME structure with nested parts.
+// This function prefers text/plain parts and decodes them from base64url encoding.
+// Returns empty string if no plain text body is found.
 func extractBody(part *gmail.MessagePart) string {
 	if part == nil {
 		return ""
@@ -132,6 +150,10 @@ func extractBody(part *gmail.MessagePart) string {
 	return ""
 }
 
+// GetDetail fetches the complete details of a specific email by ID.
+// Returns full email content including all headers and the plain text body.
+// The 'full' format includes the entire MIME structure of the message,
+// allowing extraction of the message body and all metadata.
 func (c *Client) GetDetail(ctx context.Context, id string) (*EmailDetail, error) {
 	msg, err := c.svc.Users.Messages.Get("me", id).Format("full").Do()
 	if err != nil {
@@ -160,10 +182,16 @@ func (c *Client) GetDetail(ctx context.Context, id string) (*EmailDetail, error)
 	return d, nil
 }
 
+// HumanTimeoutCtx creates a context with a timeout specified in seconds.
+// This is a convenience wrapper around context.WithTimeout that accepts
+// seconds as an integer instead of a time.Duration, making it more readable.
 func HumanTimeoutCtx(parent context.Context, seconds int) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, time.Duration(seconds)*time.Second)
 }
 
+// Ping tests the Gmail API connection by fetching the user's profile.
+// This is a lightweight check to verify that authentication is working
+// and the Gmail API is accessible. Returns an error if the connection fails.
 func (c *Client) Ping(ctx context.Context) error {
 	_, err := c.svc.Users.GetProfile("me").Do()
 	if err != nil {

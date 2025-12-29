@@ -35,8 +35,13 @@ type emailItem struct {
 	snippet string
 }
 
+// Title returns the email subject for display in the list.
 func (e emailItem) Title() string       { return e.subject }
+
+// Description returns a formatted string with sender and date information.
 func (e emailItem) Description() string { return e.from + "  |  " + e.date }
+
+// FilterValue returns all searchable text fields concatenated for filtering in the list.
 func (e emailItem) FilterValue() string { return e.subject + " " + e.from + " " + e.date }
 
 type model struct {
@@ -70,6 +75,9 @@ var (
 	faint = lipgloss.NewStyle().Faint(true)
 )
 
+// NewModel creates and initializes a new application model with default values.
+// It sets up the inbox list, search input, detail viewport, and token store.
+// Returns the model in the authentication screen state.
 func NewModel() model {
 	l := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
 	l.Title = "Inbox"
@@ -94,6 +102,9 @@ func NewModel() model {
 	}
 }
 
+// loadOAuthConfig reads the credentials.json file and creates an OAuth2 configuration
+// for Gmail API access with read-only scope. Returns an error if the file is missing
+// or cannot be parsed.
 func loadOAuthConfig() (*oauth2.Config, error) {
 	b, err := os.ReadFile(credentialsFile)
 	if err != nil {

@@ -2,6 +2,9 @@ package app
 
 import "fmt"
 
+// View renders the current application state into a string for terminal display.
+// Different screens (auth, inbox, detail, search) have different layouts and controls.
+// Returns the formatted string to be displayed by Bubble Tea.
 func (m model) View() string {
 	title := bold.Render("Gmail TUI")
 	if m.err != nil {
