@@ -36,7 +36,7 @@ type emailItem struct {
 }
 
 // Title returns the email subject for display in the list.
-func (e emailItem) Title() string       { return e.subject }
+func (e emailItem) Title() string { return e.subject }
 
 // Description returns a formatted string with sender and date information.
 func (e emailItem) Description() string { return e.from + "  |  " + e.date }

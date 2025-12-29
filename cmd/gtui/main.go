@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"gmail-tui/internal/app"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // main initializes and runs the Gmail TUI application using the Bubble Tea framework.
