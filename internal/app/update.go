@@ -44,6 +44,11 @@ type detailMsg struct {
 	err     error
 }
 
+type labelsMsg struct {
+	items []list.Item
+	err   error
+}
+
 type loginDoneMsg struct {
 	err error
 }
@@ -191,6 +196,39 @@ func (m model) fetchDetailCmd(id string) tea.Cmd {
 	}
 }
 
+// fetchLabelsCmd creates a command that fetches all Gmail labels for the user's account.
+// Labels include both system labels (INBOX, SENT, TRASH, etc.) and custom user-created labels.
+// Has a 20-second timeout for the API call.
+func (m model) fetchLabelsCmd() tea.Cmd {
+	cfg := m.cfg
+	tok := m.token
+
+	return func() tea.Msg {
+		if cfg == nil || tok == nil {
+			return labelsMsg{err: errMissingCfg{}}
+		}
+		ctx, cancel := gmailx.HumanTimeoutCtx(context.Background(), 20)
+		defer cancel()
+
+		c, err := gmailx.New(ctx, cfg, tok)
+		if err != nil {
+			return labelsMsg{err: err}
+		}
+		labels, err := c.ListLabels(ctx)
+		if err != nil {
+			return labelsMsg{err: err}
+		}
+		items := make([]list.Item, 0, len(labels))
+		for _, label := range labels {
+			items = append(items, labelItem{
+				id:   label.ID,
+				name: label.Name,
+			})
+		}
+		return labelsMsg{items: items, err: nil}
+	}
+}
+
 // Update handles all incoming messages and updates the application state accordingly.
 // This is the main event handler that processes window resizes, keyboard input,
 // and async command results. Returns the updated model and any new commands to execute.
@@ -200,6 +238,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.inbox.SetSize(msg.Width-6, msg.Height-10)
+		m.labels.SetSize(msg.Width-6, msg.Height-10)
 		m.detailVP.Width = msg.Width - 6
 		m.detailVP.Height = msg.Height - 10
 		return m, nil
@@ -236,6 +275,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.screen = screenDetail
 		return m, nil
 
+	case labelsMsg:
+		if msg.err != nil {
+			m.err = msg.err
+			return m, nil
+		}
+		m.err = nil
+		m.labels.SetItems(msg.items)
+		m.screen = screenLabels
+		return m, nil
+
 	case loginDoneMsg:
 		m.err = msg.err
 		return m, nil
@@ -264,6 +313,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch k {
 			case "r":
 				return m, m.fetchInboxCmd()
+			case "g":
+				return m, m.fetchLabelsCmd()
 			case "/":
 				m.searchInput.SetValue(m.query)
 				m.searchInput.Focus()
@@ -309,6 +360,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.searchInput, cmd = m.searchInput.Update(msg)
+			return m, cmd
+
+		case screenLabels:
+			switch k {
+			case "b":
+				m.screen = screenInbox
+				return m, nil
+			case "r":
+				return m, m.fetchLabelsCmd()
+			case "enter":
+				if it, ok := m.labels.SelectedItem().(labelItem); ok {
+					// Use label ID for filtering - Gmail search uses label IDs
+					m.query = "label:" + it.id
+					m.screen = screenInbox
+					return m, m.fetchInboxCmd()
+				}
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.labels, cmd = m.labels.Update(msg)
 			return m, cmd
 		}
 	}

@@ -61,11 +61,17 @@ func headerVal(headers []*gmail.MessagePartHeader, name string) string {
 
 // ListInbox fetches up to 'max' email messages from the user's Gmail inbox.
 // If a query string is provided, it applies Gmail search syntax filtering
-// (e.g., "from:someone newer_than:7d"). Returns basic metadata including
+// (e.g., "from:someone newer_than:7d", "label:SENT"). Returns basic metadata including
 // subject, sender, date, and snippet. Silently skips emails that fail to fetch.
+// If the query contains a label filter, it won't apply the default INBOX filter.
 func (c *Client) ListInbox(ctx context.Context, max int64, query string) ([]EmailRow, error) {
 	call := c.svc.Users.Messages.List("me").MaxResults(max)
-	call = call.LabelIds("INBOX")
+
+	// Only apply INBOX filter if query doesn't contain a label filter
+	if !strings.Contains(strings.ToLower(query), "label:") {
+		call = call.LabelIds("INBOX")
+	}
+
 	if strings.TrimSpace(query) != "" {
 		call = call.Q(query)
 	}
@@ -180,6 +186,29 @@ func (c *Client) GetDetail(ctx context.Context, id string) (*EmailDetail, error)
 		Body:    body,
 	}
 	return d, nil
+}
+
+type Label struct {
+	ID   string
+	Name string
+}
+
+// ListLabels fetches all Gmail labels (both system and user-created) for the user's account.
+// System labels include INBOX, SENT, DRAFT, TRASH, SPAM, etc. User labels are custom
+// organizational tags. Returns a slice of labels with both ID and display Name.
+func (c *Client) ListLabels(ctx context.Context) ([]Label, error) {
+	labelsResp, err := c.svc.Users.Labels.List("me").Do()
+	if err != nil {
+		return nil, err
+	}
+	labels := make([]Label, 0, len(labelsResp.Labels))
+	for _, l := range labelsResp.Labels {
+		labels = append(labels, Label{
+			ID:   l.Id,
+			Name: l.Name,
+		})
+	}
+	return labels, nil
 }
 
 // HumanTimeoutCtx creates a context with a timeout specified in seconds.

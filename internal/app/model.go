@@ -25,6 +25,7 @@ const (
 	screenInbox
 	screenDetail
 	screenSearch
+	screenLabels
 )
 
 type emailItem struct {
@@ -44,6 +45,20 @@ func (e emailItem) Description() string { return e.from + "  |  " + e.date }
 // FilterValue returns all searchable text fields concatenated for filtering in the list.
 func (e emailItem) FilterValue() string { return e.subject + " " + e.from + " " + e.date }
 
+type labelItem struct {
+	id   string
+	name string
+}
+
+// Title returns the label name for display in the list.
+func (l labelItem) Title() string { return l.name }
+
+// Description returns an empty string as labels don't need descriptions.
+func (l labelItem) Description() string { return "" }
+
+// FilterValue returns the label name for filtering in the list.
+func (l labelItem) FilterValue() string { return l.name }
+
 type model struct {
 	err error
 
@@ -55,7 +70,8 @@ type model struct {
 
 	screen screen
 
-	inbox list.Model
+	inbox  list.Model
+	labels list.Model
 
 	detailVP viewport.Model
 	detailID string
@@ -83,6 +99,10 @@ func NewModel() model {
 	l.Title = "Inbox"
 	l.SetShowHelp(true)
 
+	labels := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+	labels.Title = "Labels"
+	labels.SetShowHelp(true)
+
 	si := textinput.New()
 	si.Placeholder = "Gmail search query (example: from:someone newer_than:7d)"
 	si.Prompt = "/ "
@@ -95,6 +115,7 @@ func NewModel() model {
 	return model{
 		screen:      screenAuth,
 		inbox:       l,
+		labels:      labels,
 		searchInput: si,
 		detailVP:    vp,
 		store:       ts,

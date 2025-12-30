@@ -21,7 +21,7 @@ func (m model) View() string {
 		return pad.Render(box.Render(title+"\n\n"+body)) + "\n"
 
 	case screenInbox:
-		h := title + "\n" + faint.Render("enter open • / search • r refresh • q quit")
+		h := title + "\n" + faint.Render("enter open • / search • g labels • r refresh • q quit")
 		if m.query != "" {
 			h += "\n" + fmt.Sprintf("Query: %s", m.query)
 		}
@@ -30,6 +30,10 @@ func (m model) View() string {
 	case screenDetail:
 		h := title + "\n" + faint.Render("b back • r reload • q quit")
 		return pad.Render(box.Render(h+"\n\n"+m.detailVP.View())) + "\n"
+
+	case screenLabels:
+		h := title + "\n" + faint.Render("enter filter by label • b back • r refresh • q quit")
+		return pad.Render(box.Render(h+"\n\n"+m.labels.View())) + "\n"
 	}
 
 	return ""
